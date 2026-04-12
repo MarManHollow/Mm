@@ -43,6 +43,16 @@ struct QobuzSearchResults {
     std::vector<QobuzAlbum> albums;
 };
 
+struct QobuzPlaylist {
+    std::string             id;
+    std::string             name;
+    std::string             description;
+    std::string             owner_name;
+    int                     track_count = 0;
+    bool                    is_public   = false;
+    std::vector<QobuzTrack> tracks;   // populated by getPlaylist()
+};
+
 // ---------------------------------------------------------------------------
 // Qobuz REST API v0.2 client
 // ---------------------------------------------------------------------------
@@ -100,6 +110,34 @@ public:
                 const std::string&   type,
                 QobuzSearchResults&  out_results,
                 std::string&         out_error);
+
+    // -----------------------------------------------------------------------
+    // Discovery / library browsing
+    // -----------------------------------------------------------------------
+
+    // GET /catalog/getFeatured – editor-curated new releases
+    bool getFeaturedAlbums(const std::string&        auth_token,
+                           std::vector<QobuzAlbum>&  out_albums,
+                           std::string&              out_error);
+
+    // GET /playlist/getUserPlaylists – all playlists owned/followed by user
+    bool getUserPlaylists(const std::string&           auth_token,
+                          std::vector<QobuzPlaylist>&  out_playlists,
+                          std::string&                 out_error);
+
+    // GET /playlist/get – single playlist with its full track list
+    bool getPlaylist(const std::string&  playlist_id,
+                     const std::string&  auth_token,
+                     QobuzPlaylist&      out_playlist,
+                     std::string&        out_error);
+
+    // GET /favorite/getUserFavorites
+    // type: "tracks" or "albums"
+    bool getUserFavorites(const std::string&        auth_token,
+                          const std::string&        type,
+                          std::vector<QobuzTrack>&  out_tracks,
+                          std::vector<QobuzAlbum>&  out_albums,
+                          std::string&              out_error);
 
 private:
     std::string m_app_id;

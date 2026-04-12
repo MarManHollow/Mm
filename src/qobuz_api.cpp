@@ -353,6 +353,200 @@ bool QobuzAPI::getAlbum(const std::string& album_id,
 }
 
 // ---------------------------------------------------------------------------
+// parsePlaylist() – internal helper
+// ---------------------------------------------------------------------------
+static QobuzPlaylist parsePlaylistHeader(const json& jp) {
+    QobuzPlaylist p;
+    p.id          = jp.contains("id") ? (jp["id"].is_number()
+                        ? std::to_string(jp["id"].get<int64_t>())
+                        : jp["id"].get<std::string>()) : "";
+    p.name        = jp.contains("name")        ? jp["name"].get<std::string>() : "";
+    p.description = jp.contains("description") && !jp["description"].is_null()
+                        ? jp["description"].get<std::string>() : "";
+    p.track_count = jp.contains("tracks_count") ? jp["tracks_count"].get<int>() : 0;
+    p.is_public   = jp.contains("is_public")    ? jp["is_public"].get<bool>()   : false;
+    if (jp.contains("owner") && jp["owner"].is_object())
+        p.owner_name = jp["owner"].contains("name")
+                           ? jp["owner"]["name"].get<std::string>() : "";
+    return p;
+}
+
+// ---------------------------------------------------------------------------
+// getFeaturedAlbums()  –  GET /catalog/getFeatured
+// ---------------------------------------------------------------------------
+bool QobuzAPI::getFeaturedAlbums(const std::string&       auth_token,
+                                  std::vector<QobuzAlbum>& out_albums,
+                                  std::string&             out_error) {
+    HttpClient http;
+
+    std::string url = std::string(BASE_URL) + "/catalog/getFeatured?" +
+        buildQuery({
+            {"type",   "new-releases"},
+            {"limit",  "30"},
+            {"offset", "0"},
+        });
+
+    HttpClient::Headers hdrs = {
+        {"X-App-Id",          m_app_id},
+        {"X-User-Auth-Token", auth_token},
+    };
+
+    auto resp = http.get(url, hdrs);
+    if (!resp.ok()) {
+        out_error = "getFeatured failed (HTTP " + std::to_string(resp.status) + ")";
+        return false;
+    }
+
+    try {
+        auto j = json::parse(resp.body);
+        // Response: { "albums": { "items": [...] } }
+        if (j.contains("albums") && j["albums"].is_object()) {
+            const auto& ja = j["albums"];
+            if (ja.contains("items") && ja["items"].is_array())
+                for (const auto& item : ja["items"])
+                    out_albums.push_back(parseAlbum(item));
+        }
+        return true;
+    } catch (const std::exception& e) {
+        out_error = std::string("getFeatured JSON parse error: ") + e.what();
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// getUserPlaylists()  –  GET /playlist/getUserPlaylists
+// ---------------------------------------------------------------------------
+bool QobuzAPI::getUserPlaylists(const std::string&          auth_token,
+                                 std::vector<QobuzPlaylist>& out_playlists,
+                                 std::string&                out_error) {
+    HttpClient http;
+
+    std::string url = std::string(BASE_URL) + "/playlist/getUserPlaylists?" +
+        buildQuery({{"limit", "100"}, {"offset", "0"}});
+
+    HttpClient::Headers hdrs = {
+        {"X-App-Id",          m_app_id},
+        {"X-User-Auth-Token", auth_token},
+    };
+
+    auto resp = http.get(url, hdrs);
+    if (!resp.ok()) {
+        out_error = "getUserPlaylists failed (HTTP " + std::to_string(resp.status) + ")";
+        return false;
+    }
+
+    try {
+        auto j = json::parse(resp.body);
+        // Response: { "playlists": { "items": [...] } }
+        if (j.contains("playlists") && j["playlists"].is_object()) {
+            const auto& jp = j["playlists"];
+            if (jp.contains("items") && jp["items"].is_array())
+                for (const auto& item : jp["items"])
+                    out_playlists.push_back(parsePlaylistHeader(item));
+        }
+        return true;
+    } catch (const std::exception& e) {
+        out_error = std::string("getUserPlaylists JSON parse error: ") + e.what();
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// getPlaylist()  –  GET /playlist/get  (includes tracks)
+// ---------------------------------------------------------------------------
+bool QobuzAPI::getPlaylist(const std::string& playlist_id,
+                            const std::string& auth_token,
+                            QobuzPlaylist&     out_playlist,
+                            std::string&       out_error) {
+    HttpClient http;
+
+    std::string url = std::string(BASE_URL) + "/playlist/get?" +
+        buildQuery({
+            {"playlist_id", playlist_id},
+            {"extra",       "tracks"},
+            {"limit",       "500"},
+            {"offset",      "0"},
+        });
+
+    HttpClient::Headers hdrs = {
+        {"X-App-Id",          m_app_id},
+        {"X-User-Auth-Token", auth_token},
+    };
+
+    auto resp = http.get(url, hdrs);
+    if (!resp.ok()) {
+        out_error = "getPlaylist failed (HTTP " + std::to_string(resp.status) + ")";
+        return false;
+    }
+
+    try {
+        auto j = json::parse(resp.body);
+        out_playlist = parsePlaylistHeader(j);
+
+        if (j.contains("tracks") && j["tracks"].is_object()) {
+            const auto& jt = j["tracks"];
+            if (jt.contains("items") && jt["items"].is_array())
+                for (const auto& item : jt["items"])
+                    out_playlist.tracks.push_back(parseTrack(item));
+        }
+        return true;
+    } catch (const std::exception& e) {
+        out_error = std::string("getPlaylist JSON parse error: ") + e.what();
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// getUserFavorites()  –  GET /favorite/getUserFavorites
+// ---------------------------------------------------------------------------
+bool QobuzAPI::getUserFavorites(const std::string&       auth_token,
+                                 const std::string&       type,
+                                 std::vector<QobuzTrack>& out_tracks,
+                                 std::vector<QobuzAlbum>& out_albums,
+                                 std::string&             out_error) {
+    HttpClient http;
+
+    std::string url = std::string(BASE_URL) + "/favorite/getUserFavorites?" +
+        buildQuery({
+            {"type",   type},
+            {"limit",  "200"},
+            {"offset", "0"},
+        });
+
+    HttpClient::Headers hdrs = {
+        {"X-App-Id",          m_app_id},
+        {"X-User-Auth-Token", auth_token},
+    };
+
+    auto resp = http.get(url, hdrs);
+    if (!resp.ok()) {
+        out_error = "getUserFavorites failed (HTTP " + std::to_string(resp.status) + ")";
+        return false;
+    }
+
+    try {
+        auto j = json::parse(resp.body);
+
+        if (j.contains("tracks") && j["tracks"].is_object()) {
+            const auto& jt = j["tracks"];
+            if (jt.contains("items") && jt["items"].is_array())
+                for (const auto& item : jt["items"])
+                    out_tracks.push_back(parseTrack(item));
+        }
+        if (j.contains("albums") && j["albums"].is_object()) {
+            const auto& ja = j["albums"];
+            if (ja.contains("items") && ja["items"].is_array())
+                for (const auto& item : ja["items"])
+                    out_albums.push_back(parseAlbum(item));
+        }
+        return true;
+    } catch (const std::exception& e) {
+        out_error = std::string("getUserFavorites JSON parse error: ") + e.what();
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // search()  –  GET /search/getResults
 // ---------------------------------------------------------------------------
 bool QobuzAPI::search(const std::string&  query,

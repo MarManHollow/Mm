@@ -40,6 +40,7 @@ set(SOURCES
     src/qobuz_api.cpp
     src/qobuz_input.cpp
     src/preferences.cpp
+    src/qobuz_browser.cpp
     resources/resource.rc
 )
 
