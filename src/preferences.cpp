@@ -26,7 +26,7 @@ static const GUID guid_prefs_page = {
 };
 
 // ---------------------------------------------------------------------------
-// Pure Win32 helpers – no foobar2000 uSetDlgItemText / uGetDlgItemText needed
+// Pure Win32 helpers
 // ---------------------------------------------------------------------------
 
 static void dlgSetText(HWND dlg, int ctrl, const char* utf8) {
@@ -34,31 +34,24 @@ static void dlgSetText(HWND dlg, int ctrl, const char* utf8) {
     ::SetDlgItemTextW(dlg, ctrl, w);
 }
 
-static std::string dlgGetText(HWND dlg, int ctrl) {
-    wchar_t buf[4096] = {};
-    ::GetDlgItemTextW(dlg, ctrl, buf, 4096);
-    pfc::stringcvt::string_utf8_from_wide conv(buf, wcslen(buf));
-    return conv.get_ptr();
-}
-
 // ---------------------------------------------------------------------------
-class CQobuzPreferences
-    : public CDialogImpl<CQobuzPreferences>,
-      public preferences_page_instance {
+// Dialog class – pure ATL dialog, no service inheritance.
+// The outer preferences_page_instance service owns an instance of this.
+// ---------------------------------------------------------------------------
+class CQobuzPrefsDialog : public CDialogImpl<CQobuzPrefsDialog> {
 public:
     enum { IDD = IDD_PREFS_QOBUZ };
 
-    CQobuzPreferences(preferences_page_callback::ptr callback)
+    CQobuzPrefsDialog(preferences_page_callback::ptr callback)
         : m_callback(callback) {}
 
-    // --- preferences_page_instance ---
-    t_uint32 get_state() override {
+    t_uint32 get_state() {
         t_uint32 state = preferences_state::resettable;
         if (hasChanges()) state |= preferences_state::changed;
         return state;
     }
 
-    void reset() override {
+    void reset() {
         dlgSetText(m_hWnd, IDC_EDIT_APP_ID,     "");
         dlgSetText(m_hWnd, IDC_EDIT_APP_SECRET, "");
         dlgSetText(m_hWnd, IDC_EDIT_EMAIL,      "");
@@ -67,7 +60,7 @@ public:
         onChanged();
     }
 
-    void apply() override {
+    void apply() {
         g_cfg_app_id     = getEditText(IDC_EDIT_APP_ID).c_str();
         g_cfg_app_secret = getEditText(IDC_EDIT_APP_SECRET).c_str();
         g_cfg_email      = getEditText(IDC_EDIT_EMAIL).c_str();
@@ -82,9 +75,7 @@ public:
         onChanged();
     }
 
-    HWND get_wnd() override { return m_hWnd; }
-
-    BEGIN_MSG_MAP(CQobuzPreferences)
+    BEGIN_MSG_MAP(CQobuzPrefsDialog)
         MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
         COMMAND_HANDLER(IDC_EDIT_APP_ID,     EN_CHANGE,    OnEditChange)
         COMMAND_HANDLER(IDC_EDIT_APP_SECRET, EN_CHANGE,    OnEditChange)
@@ -190,13 +181,49 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-class CQobuzPreferencesImpl : public preferences_page_impl<CQobuzPreferences> {
+// preferences_page_instance – service that wraps the dialog.
+// Lifetime: owned by foobar2000 via service ref-counting.
+// ---------------------------------------------------------------------------
+class CQobuzPrefsInstance : public preferences_page_instance {
+public:
+    CQobuzPrefsInstance(preferences_page_callback::ptr cb) : m_dlg(cb) {}
+    ~CQobuzPrefsInstance() {
+        if (m_dlg.IsWindow())
+            m_dlg.DestroyWindow();
+    }
+
+    bool create(HWND parent) {
+        return m_dlg.Create(parent) != NULL;
+    }
+
+    HWND get_wnd() { return m_dlg.m_hWnd; }
+
+    t_uint32 get_state() override { return m_dlg.get_state(); }
+    void     apply()     override { m_dlg.apply(); }
+    void     reset()     override { m_dlg.reset(); }
+
+private:
+    CQobuzPrefsDialog m_dlg;
+};
+
+// ---------------------------------------------------------------------------
+// preferences_page_v3 – the factory service that instantiates the page.
+// ---------------------------------------------------------------------------
+class CQobuzPreferencesPage : public preferences_page_v3 {
 public:
     const char* get_name() override { return "Qobuz"; }
     GUID        get_guid() override { return guid_prefs_page; }
     GUID        get_parent_guid() override { return preferences_page::guid_tools; }
+
+    preferences_page_instance::ptr instantiate(
+        HWND parent, preferences_page_callback::ptr callback) override
+    {
+        auto* raw = new service_impl_t<CQobuzPrefsInstance>(callback);
+        raw->create(parent);
+        return raw;
+    }
 };
 
-static preferences_page_factory_t<CQobuzPreferencesImpl> g_prefs_factory;
+static preferences_page_factory_t<CQobuzPreferencesPage> g_prefs_factory;
 
 } // anonymous namespace

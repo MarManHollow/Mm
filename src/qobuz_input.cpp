@@ -148,6 +148,10 @@ public:
         return filestats_invalid;
     }
 
+    t_filestats2 get_stats2(uint32_t /*f*/, abort_callback& /*p_abort*/) {
+        return t_filestats2();
+    }
+
     void decode_initialize(t_uint32 p_subsong,
                            unsigned p_flags,
                            abort_callback& p_abort) {

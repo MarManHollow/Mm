@@ -135,12 +135,30 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// foobar2000 ui_element wrapper
+// foobar2000 ui_element_instance service – owns a CQobuzBrowserWnd.
+// Lifetime managed via service ref-counting; window destroyed in dtor.
 // ---------------------------------------------------------------------------
-class CQobuzBrowserElement
-    : public ui_element_impl_withpopup<CQobuzBrowserWnd>
-{
+class CQobuzBrowserInstance : public ui_element_instance {
 public:
+    CQobuzBrowserInstance(ui_element_config::ptr cfg,
+                          ui_element_instance_callback_ptr callback)
+        : m_cfg(cfg), m_callback(callback) {}
+
+    ~CQobuzBrowserInstance() {
+        if (m_wnd.IsWindow())
+            m_wnd.DestroyWindow();
+    }
+
+    void initialize_window(HWND parent) {
+        m_wnd.set_callback(m_callback);
+        m_wnd.Create(parent);
+    }
+
+    HWND get_wnd() { return m_wnd.m_hWnd; }
+
+    void set_configuration(ui_element_config::ptr cfg) { m_cfg = cfg; }
+    ui_element_config::ptr get_configuration() { return m_cfg; }
+
     static GUID g_get_guid() {
         static const GUID g = {
             0xd5e6f7a8, 0xcccc, 0x4321,
@@ -148,11 +166,46 @@ public:
         };
         return g;
     }
-    static void g_get_name(pfc::string_base& out) { out = "Qobuz Browser"; }
-    static ui_element_config::ptr g_get_default_configuration() {
-        return ui_element_config::g_create_empty(g_get_guid());
+    static GUID g_get_subclass() { return ui_element_subclass_utility; }
+
+    GUID get_guid() { return g_get_guid(); }
+    GUID get_subclass() { return g_get_subclass(); }
+
+private:
+    CQobuzBrowserWnd                 m_wnd;
+    ui_element_config::ptr           m_cfg;
+    ui_element_instance_callback_ptr m_callback;
+};
+
+// ---------------------------------------------------------------------------
+// foobar2000 ui_element service – the factory.
+// ---------------------------------------------------------------------------
+class CQobuzBrowserElement : public ui_element {
+public:
+    GUID get_guid() { return CQobuzBrowserInstance::g_get_guid(); }
+    GUID get_subclass() { return CQobuzBrowserInstance::g_get_subclass(); }
+
+    void get_name(pfc::string_base& out) { out = "Qobuz Browser"; }
+
+    ui_element_instance_ptr instantiate(HWND parent,
+                                        ui_element_config::ptr cfg,
+                                        ui_element_instance_callback_ptr callback)
+    {
+        auto* raw = new service_impl_t<CQobuzBrowserInstance>(cfg, callback);
+        raw->initialize_window(parent);
+        return raw;
     }
-    static const char* g_get_description() {
-        return "Browse new releases, playlists, and favorites from Qobuz.";
+
+    ui_element_config::ptr get_default_configuration() {
+        return ui_element_config::g_create_empty(CQobuzBrowserInstance::g_get_guid());
+    }
+
+    bool get_description(pfc::string_base& out) {
+        out = "Browse new releases, playlists, and favorites from Qobuz.";
+        return true;
+    }
+
+    ui_element_children_enumerator_ptr enumerate_children(ui_element_config::ptr) {
+        return nullptr;
     }
 };
