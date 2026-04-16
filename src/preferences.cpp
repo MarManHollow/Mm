@@ -25,6 +25,22 @@ static const GUID guid_prefs_page = {
 };
 
 // ---------------------------------------------------------------------------
+// Pure Win32 helpers – no foobar2000 uSetDlgItemText / uGetDlgItemText needed
+// ---------------------------------------------------------------------------
+
+static void dlgSetText(HWND dlg, int ctrl, const char* utf8) {
+    pfc::stringcvt::string_wide_from_utf8 w(utf8);
+    ::SetDlgItemTextW(dlg, ctrl, w);
+}
+
+static std::string dlgGetText(HWND dlg, int ctrl) {
+    wchar_t buf[4096] = {};
+    ::GetDlgItemTextW(dlg, ctrl, buf, 4096);
+    pfc::stringcvt::string_utf8_from_wide conv(buf, wcslen(buf));
+    return conv.get_ptr();
+}
+
+// ---------------------------------------------------------------------------
 class CQobuzPreferences
     : public CDialogImpl<CQobuzPreferences>,
       public preferences_page_instance {
@@ -42,10 +58,10 @@ public:
     }
 
     void reset() override {
-        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_ID,     "");
-        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_SECRET, "");
-        uSetDlgItemText(m_hWnd, IDC_EDIT_EMAIL,      "");
-        uSetDlgItemText(m_hWnd, IDC_EDIT_PASSWORD,   "");
+        dlgSetText(m_hWnd, IDC_EDIT_APP_ID,     "");
+        dlgSetText(m_hWnd, IDC_EDIT_APP_SECRET, "");
+        dlgSetText(m_hWnd, IDC_EDIT_EMAIL,      "");
+        dlgSetText(m_hWnd, IDC_EDIT_PASSWORD,   "");
         setFormatCombo(kFormatFLAC_16);
         onChanged();
     }
@@ -81,21 +97,21 @@ private:
     preferences_page_callback::ptr m_callback;
 
     LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&) {
-        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_ID,
-                        static_cast<const char*>(g_cfg_app_id));
-        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_SECRET,
-                        static_cast<const char*>(g_cfg_app_secret));
-        uSetDlgItemText(m_hWnd, IDC_EDIT_EMAIL,
-                        static_cast<const char*>(g_cfg_email));
-        uSetDlgItemText(m_hWnd, IDC_EDIT_PASSWORD,
-                        static_cast<const char*>(g_cfg_password));
+        dlgSetText(m_hWnd, IDC_EDIT_APP_ID,
+                   static_cast<const char*>(g_cfg_app_id));
+        dlgSetText(m_hWnd, IDC_EDIT_APP_SECRET,
+                   static_cast<const char*>(g_cfg_app_secret));
+        dlgSetText(m_hWnd, IDC_EDIT_EMAIL,
+                   static_cast<const char*>(g_cfg_email));
+        dlgSetText(m_hWnd, IDC_EDIT_PASSWORD,
+                   static_cast<const char*>(g_cfg_password));
 
         HWND hCombo = GetDlgItem(IDC_COMBO_FORMAT);
         for (int i = 0; i < kFormatCount; ++i)
             ::SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)kFormats[i].label);
         setFormatCombo(static_cast<uint32_t>(g_cfg_format_id));
 
-        uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS, "");
+        ::SetDlgItemTextW(m_hWnd, IDC_STATIC_STATUS, L"");
         return TRUE;
     }
 
@@ -110,24 +126,24 @@ private:
 
         if (appId.empty() || appSecret.empty() ||
             email.empty() || password.empty()) {
-            uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS,
-                "Please fill in all fields before testing login.");
+            dlgSetText(m_hWnd, IDC_STATIC_STATUS,
+                       "Please fill in all fields before testing login.");
             return 0;
         }
 
-        uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS, "Logging in...");
-        UpdateWindow();
+        dlgSetText(m_hWnd, IDC_STATIC_STATUS, "Logging in...");
+        ::UpdateWindow(m_hWnd);
 
         QobuzAPI api(appId, appSecret);
         std::string token, err;
         if (api.login(email, password, token, err)) {
             std::string msg = "Login successful! Token: " +
                               token.substr(0, 8) + "...";
-            uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS, msg.c_str());
+            dlgSetText(m_hWnd, IDC_STATIC_STATUS, msg.c_str());
             g_cfg_auth_token = token.c_str();
         } else {
-            uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS,
-                ("Login failed: " + err).c_str());
+            dlgSetText(m_hWnd, IDC_STATIC_STATUS,
+                       ("Login failed: " + err).c_str());
         }
         return 0;
     }
@@ -146,9 +162,10 @@ private:
     }
 
     std::string getEditText(int ctrl_id) const {
-        pfc::string8 buf;
-        uGetDlgItemText(m_hWnd, ctrl_id, buf);
-        return buf.get_ptr();
+        wchar_t buf[2048] = {};
+        ::GetDlgItemTextW(m_hWnd, ctrl_id, buf, 2048);
+        pfc::stringcvt::string_utf8_from_wide conv(buf, wcslen(buf));
+        return conv.get_ptr();
     }
 
     uint32_t selectedFormatId() const {
