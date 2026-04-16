@@ -1,6 +1,7 @@
 #pragma once
 #include "stdafx.h"
 #include "qobuz_api.h"
+#include <ui_element.h>
 #include <map>
 #include <thread>
 #include <atomic>

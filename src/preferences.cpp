@@ -2,6 +2,7 @@
 #include "config.h"
 #include "qobuz_api.h"
 #include "resource.h"
+#include <preferences_page.h>
 
 // ---------------------------------------------------------------------------
 // Format table (ASCII labels – safe to use as wide literals)

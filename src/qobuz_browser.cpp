@@ -89,17 +89,17 @@ LRESULT CQobuzBrowserWnd::OnSize(UINT, WPARAM, LPARAM lParam, BOOL&) {
     const int W = LOWORD(lParam), H = HIWORD(lParam);
     const int kSearchH = 24, kStatusH = 18, kBtnW = 60, kTreeW = 200, kPad = 4;
 
-    SetWindowPos(m_searchEdit, nullptr,
+    ::SetWindowPos(m_searchEdit, nullptr,
         kPad, kPad, W - kBtnW - kPad * 3, kSearchH, SWP_NOZORDER);
-    SetWindowPos(m_searchBtn, nullptr,
+    ::SetWindowPos(m_searchBtn, nullptr,
         W - kBtnW - kPad, kPad, kBtnW, kSearchH, SWP_NOZORDER);
-    SetWindowPos(m_statusBar, nullptr,
+    ::SetWindowPos(m_statusBar, nullptr,
         kPad, H - kStatusH - kPad, W - kPad * 2, kStatusH, SWP_NOZORDER);
 
     const int top = kSearchH + kPad * 2;
     const int ch  = H - top - kStatusH - kPad * 2;
-    SetWindowPos(m_tree, nullptr, 0,           top, kTreeW,         ch, SWP_NOZORDER);
-    SetWindowPos(m_list, nullptr, kTreeW + 1,  top, W - kTreeW - 1, ch, SWP_NOZORDER);
+    ::SetWindowPos(m_tree, nullptr, 0,           top, kTreeW,         ch, SWP_NOZORDER);
+    ::SetWindowPos(m_list, nullptr, kTreeW + 1,  top, W - kTreeW - 1, ch, SWP_NOZORDER);
 
     // Proportional column widths
     const int lw = W - kTreeW - 1;
@@ -194,7 +194,7 @@ LRESULT CQobuzBrowserWnd::OnNotify(UINT, WPARAM wParam, LPARAM lParam, BOOL&) {
 // ---------------------------------------------------------------------------
 LRESULT CQobuzBrowserWnd::OnSearchClicked(WORD, WORD, HWND, BOOL&) {
     wchar_t buf[512] = {};
-    GetWindowTextW(m_searchEdit, buf, 512);
+    ::GetWindowTextW(m_searchEdit, buf, 512);
     if (buf[0] != L'\0') {
         pfc::stringcvt::string_utf8_from_wide conv(buf, wcslen(buf));
         asyncSearch(conv.get_ptr());
@@ -312,7 +312,7 @@ void CQobuzBrowserWnd::populateList(const std::vector<QobuzTrack>& tracks) {
     }
 
     SendMessage(m_list, WM_SETREDRAW, TRUE, 0);
-    InvalidateRect(m_list, nullptr, FALSE);
+    ::InvalidateRect(m_list, nullptr, FALSE);
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +384,7 @@ void CQobuzBrowserWnd::addTracksToPlaylist(const std::vector<QobuzTrack>& tracks
 
 void CQobuzBrowserWnd::setStatus(const char* msg) {
     pfc::stringcvt::string_wide_from_utf8 w(msg);
-    SetWindowTextW(m_statusBar, w);
+    ::SetWindowTextW(m_statusBar, w);
 }
 
 // ---------------------------------------------------------------------------
