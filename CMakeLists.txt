@@ -59,6 +59,13 @@ target_include_directories(foo_qobuz PRIVATE
     ${FB2K_SDK_PATH}/pfc
 )
 
+target_compile_definitions(foo_qobuz PRIVATE
+    UNICODE
+    _UNICODE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+)
+
 target_link_libraries(foo_qobuz PRIVATE
     nlohmann_json::nlohmann_json
     winhttp
@@ -66,6 +73,7 @@ target_link_libraries(foo_qobuz PRIVATE
     crypt32
     shlwapi
     comctl32
+    winmm       # timeGetTime (used by pfc/timers.h)
 )
 
 # foobar2000 SDK static libs (Release build assumed; adjust for Debug)

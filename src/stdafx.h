@@ -1,12 +1,27 @@
 #pragma once
 
-// Windows
+// ---- Must come before any Windows headers ----
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#define UNICODE
+#define _UNICODE
+
+// Windows core
 #include <windows.h>
+#include <timeapi.h>    // timeGetTime  (used by pfc/timers.h)
 #include <winhttp.h>
 #include <bcrypt.h>
 #include <shlwapi.h>
+#include <commctrl.h>
+
+// ATL (ships with Visual Studio – must come before foobar2000 SDK)
+#include <atlbase.h>
+#include <atlwin.h>
+#include <atltypes.h>
+#include <atlstr.h>
+#include <atlapp.h>
+#include <atlctrls.h>
+#include <atlmisc.h>
 
 // STL
 #include <string>
@@ -19,11 +34,17 @@
 #include <stdexcept>
 #include <ctime>
 #include <cassert>
+#include <thread>
+#include <atomic>
+#include <map>
 
 // foobar2000 SDK
 #include <foobar2000.h>
 #include <helpers/helpers.h>
+// ATLHelpers is optional – present in some SDK versions, absent in others
+#if __has_include(<ATLHelpers/ATLHelpers.h>)
 #include <ATLHelpers/ATLHelpers.h>
+#endif
 
 // JSON (nlohmann – fetched via CMake FetchContent)
 #include <nlohmann/json.hpp>
