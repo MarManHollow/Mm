@@ -17,11 +17,6 @@
 // ATL (ships with Visual Studio – must come before foobar2000 SDK)
 #include <atlbase.h>
 #include <atlwin.h>
-#include <atltypes.h>
-#include <atlstr.h>
-#include <atlapp.h>
-#include <atlctrls.h>
-#include <atlmisc.h>
 
 // STL
 #include <string>
