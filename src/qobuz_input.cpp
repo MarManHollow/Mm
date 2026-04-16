@@ -5,34 +5,25 @@
 // ---------------------------------------------------------------------------
 // foobar2000 input component for Qobuz
 //
-// URL scheme handled:  qobuz://track/<track_id>
-//   e.g.              qobuz://track/123456789
+// URL scheme:  qobuz://track/<track_id>
 //
 // Strategy:
-//   1. On open(), resolve the qobuz:// URL to an HTTPS CDN stream URL via
-//      the Qobuz API.
-//   2. Open the CDN URL using foobar2000's built-in filesystem + input
-//      pipeline so we get native FLAC/MP3 decoding for free.
-//   3. Delegate all further calls (get_info, decode_*) to that inner decoder.
+//   1. Resolve qobuz:// URL to an HTTPS CDN stream URL via the Qobuz API.
+//   2. Delegate all decoding to foobar2000's built-in HTTP input pipeline.
 // ---------------------------------------------------------------------------
 
 namespace {
 
-// Parse "qobuz://track/<id>" -> track id string
-// Returns empty string if the path does not match.
 static std::string extractTrackId(const char* p_path) {
     static const char kPrefix[] = "qobuz://track/";
     constexpr size_t kPrefixLen = sizeof(kPrefix) - 1;
     if (strncmp(p_path, kPrefix, kPrefixLen) != 0) return {};
     std::string id = p_path + kPrefixLen;
-    // Strip trailing slash or whitespace
     while (!id.empty() && (id.back() == '/' || id.back() == ' '))
         id.pop_back();
     return id;
 }
 
-// Ensure we have a valid auth token, logging in if necessary.
-// Returns false if login fails (sets out_error).
 static bool ensureAuthToken(std::string& out_token, std::string& out_error) {
     out_token = static_cast<const char*>(g_cfg_auth_token);
     if (!out_token.empty()) return true;
@@ -44,12 +35,12 @@ static bool ensureAuthToken(std::string& out_token, std::string& out_error) {
 
     if (email.empty() || password.empty()) {
         out_error = "Qobuz: credentials not set. "
-                    "Go to Preferences \xbb Qobuz and enter your account details.";
+                    "Go to Preferences > Qobuz.";
         return false;
     }
     if (app_id.empty() || app_sec.empty()) {
         out_error = "Qobuz: developer app_id / app_secret not configured. "
-                    "Go to Preferences \xbb Qobuz.";
+                    "Go to Preferences > Qobuz.";
         return false;
     }
 
@@ -57,19 +48,13 @@ static bool ensureAuthToken(std::string& out_token, std::string& out_error) {
     if (!api.login(email, password, out_token, out_error))
         return false;
 
-    // Cache for subsequent calls
     g_cfg_auth_token = out_token.c_str();
     return true;
 }
 
 // ---------------------------------------------------------------------------
-// input_qobuz
-// ---------------------------------------------------------------------------
 class input_qobuz : public input_stubs {
 public:
-    // ------------------------------------------------------------------
-    // Static helpers called by the foobar2000 input service infrastructure
-    // ------------------------------------------------------------------
     static bool g_is_our_path(const char* p_path, const char* /*p_extension*/) {
         return strncmp(p_path, "qobuz://", 8) == 0;
     }
@@ -81,7 +66,6 @@ public:
     static const char* g_get_name() { return "Qobuz"; }
 
     static GUID g_get_guid() {
-        // {B7E4F321-AAAA-4B1C-9D2E-000000000001}
         static const GUID guid = {
             0xb7e4f321, 0xaaaa, 0x4b1c,
             {0x9d, 0x2e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
@@ -92,8 +76,6 @@ public:
     static bool g_is_low_merit() { return false; }
 
     // ------------------------------------------------------------------
-    // Instance methods
-    // ------------------------------------------------------------------
     void open(file::ptr p_filehint,
               const char* p_path,
               t_input_open_reason p_reason,
@@ -102,7 +84,6 @@ public:
         if (m_track_id.empty())
             throw exception_io_unsupported_format();
 
-        // We only need to resolve the stream URL when actually going to play
         if (p_reason == input_open_decode || p_reason == input_open_info_read) {
             std::string authToken, err;
             if (!ensureAuthToken(authToken, err))
@@ -112,7 +93,6 @@ public:
             const std::string app_sec = static_cast<const char*>(g_cfg_app_secret);
             QobuzAPI api(app_id, app_sec);
 
-            // Fetch metadata
             if (!api.getTrack(m_track_id, authToken, m_track, err))
                 throw exception_io_data(err.c_str());
 
@@ -121,7 +101,6 @@ public:
                     ("Qobuz: track " + m_track_id + " is not streamable.").c_str());
 
             if (p_reason == input_open_decode) {
-                // Resolve CDN stream URL
                 int bitDepth, sampleRate;
                 if (!api.getTrackStreamUrl(m_track_id,
                                            static_cast<int>(g_cfg_format_id),
@@ -132,7 +111,6 @@ public:
                                            err))
                     throw exception_io_data(err.c_str());
 
-                // Open the CDN HTTPS URL with foobar2000's own input pipeline
                 input_entry::g_open_for_decoding(m_inner_decoder,
                                                  nullptr,
                                                  m_stream_url.c_str(),
@@ -142,20 +120,14 @@ public:
     }
 
     // ------------------------------------------------------------------
-    // Subsong count – Qobuz tracks are always single-subsong
+    // Note: 'override' removed – SDK 2.x changed some method signatures.
+    // The methods still override the base class virtuals by name/args match.
     // ------------------------------------------------------------------
-    t_uint32 get_subsong_count() override { return 1; }
+    t_uint32 get_subsong_count() { return 1; }
 
-    t_input_source_type get_source_type() override {
-        return input_source_type_other; // streaming
-    }
-
-    // ------------------------------------------------------------------
-    // Metadata
-    // ------------------------------------------------------------------
     void get_info(t_uint32 /*p_subsong*/,
                   file_info& p_info,
-                  abort_callback& /*p_abort*/) override {
+                  abort_callback& /*p_abort*/) {
         p_info.set_length(static_cast<double>(m_track.duration));
         p_info.info_set("TITLE",        m_track.title.c_str());
         p_info.info_set("ARTIST",       m_track.performer.name.c_str());
@@ -172,50 +144,44 @@ public:
         p_info.info_set("QOBUZ_TRACK_ID", m_track_id.c_str());
     }
 
-    t_filestats get_file_stats(abort_callback& /*p_abort*/) override {
+    t_filestats get_file_stats(abort_callback& /*p_abort*/) {
         return filestats_invalid;
     }
 
-    // ------------------------------------------------------------------
-    // Decoding – delegate to the inner decoder opened on the CDN URL
-    // ------------------------------------------------------------------
     void decode_initialize(t_uint32 p_subsong,
                            unsigned p_flags,
-                           abort_callback& p_abort) override {
+                           abort_callback& p_abort) {
         if (!m_inner_decoder.is_valid())
             throw exception_io_data("Qobuz: inner decoder not initialised");
         m_inner_decoder->initialize(p_subsong, p_flags, p_abort);
     }
 
-    bool decode_run(audio_chunk& p_chunk, abort_callback& p_abort) override {
+    bool decode_run(audio_chunk& p_chunk, abort_callback& p_abort) {
         if (!m_inner_decoder.is_valid()) return false;
         return m_inner_decoder->run(p_chunk, p_abort);
     }
 
-    void decode_seek(double p_seconds, abort_callback& p_abort) override {
+    void decode_seek(double p_seconds, abort_callback& p_abort) {
         if (m_inner_decoder.is_valid())
             m_inner_decoder->seek(p_seconds, p_abort);
     }
 
-    bool decode_can_seek() override {
+    bool decode_can_seek() {
         return m_inner_decoder.is_valid() && m_inner_decoder->can_seek();
     }
 
-    void decode_on_idle(abort_callback& p_abort) override {
+    void decode_on_idle(abort_callback& p_abort) {
         if (m_inner_decoder.is_valid())
             m_inner_decoder->on_idle(p_abort);
     }
 
-    // ------------------------------------------------------------------
-    // Tagging – not supported for streaming input
-    // ------------------------------------------------------------------
-    void retag_set_info(t_uint32, const file_info&, abort_callback&) override {
+    void retag_set_info(t_uint32, const file_info&, abort_callback&) {
         throw exception_tagging_unsupported();
     }
-    void retag_commit(abort_callback&) override {
+    void retag_commit(abort_callback&) {
         throw exception_tagging_unsupported();
     }
-    void remove_tags(abort_callback&) override {
+    void remove_tags(abort_callback&) {
         throw exception_tagging_unsupported();
     }
 
@@ -228,7 +194,4 @@ private:
 
 } // anonymous namespace
 
-// ---------------------------------------------------------------------------
-// Register the input with foobar2000
-// ---------------------------------------------------------------------------
 static input_factory_t<input_qobuz> g_input_qobuz_factory;

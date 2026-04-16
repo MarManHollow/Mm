@@ -4,40 +4,26 @@
 #include "resource.h"
 
 // ---------------------------------------------------------------------------
-// Preferences page – shown under Preferences > Qobuz
-//
-// Controls:
-//   IDC_EDIT_APP_ID      – developer app_id
-//   IDC_EDIT_APP_SECRET  – developer app_secret
-//   IDC_EDIT_EMAIL       – account e-mail
-//   IDC_EDIT_PASSWORD    – account password  (password style)
-//   IDC_COMBO_FORMAT     – streaming quality selector
-//   IDC_BTN_LOGIN        – test login button
-//   IDC_STATIC_STATUS    – status label
+// Format table (ASCII labels – safe to use as wide literals)
 // ---------------------------------------------------------------------------
-
 namespace {
 
-// Map combo-box index -> QobuzFormat value
-static const struct { const char* label; uint32_t format_id; }
+static const struct { const wchar_t* label; uint32_t format_id; }
 kFormats[] = {
-    { "FLAC 16-bit (CD)",           kFormatFLAC_16     },
-    { "FLAC 24-bit / up to 96 kHz", kFormatFLAC_24_96  },
-    { "FLAC 24-bit / up to 192 kHz",kFormatFLAC_24_192 },
-    { "MP3 320 kbps",               kFormatMP3_320     },
+    { L"FLAC 16-bit (CD)",            kFormatFLAC_16     },
+    { L"FLAC 24-bit / up to 96 kHz",  kFormatFLAC_24_96  },
+    { L"FLAC 24-bit / up to 192 kHz", kFormatFLAC_24_192 },
+    { L"MP3 320 kbps",                kFormatMP3_320     },
 };
 static constexpr int kFormatCount =
     static_cast<int>(sizeof(kFormats) / sizeof(kFormats[0]));
 
-// GUID for the preferences page
 // {C3F5A1B2-BEEF-4321-ABCD-000000000001}
 static const GUID guid_prefs_page = {
     0xc3f5a1b2, 0xbeef, 0x4321,
     {0xab, 0xcd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
 };
 
-// ---------------------------------------------------------------------------
-// Dialog class (ATL / WTL based, as used by the foobar2000 helpers layer)
 // ---------------------------------------------------------------------------
 class CQobuzPreferences
     : public CDialogImpl<CQobuzPreferences>,
@@ -56,11 +42,11 @@ public:
     }
 
     void reset() override {
-        SetDlgItemText(IDC_EDIT_APP_ID,     "");
-        SetDlgItemText(IDC_EDIT_APP_SECRET, "");
-        SetDlgItemText(IDC_EDIT_EMAIL,      "");
-        SetDlgItemText(IDC_EDIT_PASSWORD,   "");
-        selectFormatCombo(kFormatFLAC_16);
+        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_ID,     "");
+        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_SECRET, "");
+        uSetDlgItemText(m_hWnd, IDC_EDIT_EMAIL,      "");
+        uSetDlgItemText(m_hWnd, IDC_EDIT_PASSWORD,   "");
+        setFormatCombo(kFormatFLAC_16);
         onChanged();
     }
 
@@ -70,61 +56,51 @@ public:
         g_cfg_email      = getEditText(IDC_EDIT_EMAIL).c_str();
         g_cfg_password   = getEditText(IDC_EDIT_PASSWORD).c_str();
 
-        int sel = SendDlgItemMessage(IDC_COMBO_FORMAT, CB_GETCURSEL, 0, 0);
+        int sel = (int)::SendDlgItemMessage(m_hWnd, IDC_COMBO_FORMAT,
+                                            CB_GETCURSEL, 0, 0);
         if (sel >= 0 && sel < kFormatCount)
             g_cfg_format_id = kFormats[sel].format_id;
 
-        // Invalidate cached token so next playback re-authenticates if creds changed
-        g_cfg_auth_token = "";
-
+        g_cfg_auth_token = ""; // invalidate cached token
         onChanged();
     }
 
     HWND get_wnd() override { return m_hWnd; }
 
-    // --- WTL message map ---
     BEGIN_MSG_MAP(CQobuzPreferences)
         MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
-        COMMAND_HANDLER(IDC_EDIT_APP_ID,     EN_CHANGE, OnEditChange)
-        COMMAND_HANDLER(IDC_EDIT_APP_SECRET, EN_CHANGE, OnEditChange)
-        COMMAND_HANDLER(IDC_EDIT_EMAIL,      EN_CHANGE, OnEditChange)
-        COMMAND_HANDLER(IDC_EDIT_PASSWORD,   EN_CHANGE, OnEditChange)
-        COMMAND_HANDLER(IDC_COMBO_FORMAT,    CBN_SELCHANGE, OnComboChange)
-        COMMAND_HANDLER(IDC_BTN_LOGIN,       BN_CLICKED, OnLoginClicked)
+        COMMAND_HANDLER(IDC_EDIT_APP_ID,     EN_CHANGE,    OnEditChange)
+        COMMAND_HANDLER(IDC_EDIT_APP_SECRET, EN_CHANGE,    OnEditChange)
+        COMMAND_HANDLER(IDC_EDIT_EMAIL,      EN_CHANGE,    OnEditChange)
+        COMMAND_HANDLER(IDC_EDIT_PASSWORD,   EN_CHANGE,    OnEditChange)
+        COMMAND_HANDLER(IDC_COMBO_FORMAT,    CBN_SELCHANGE,OnComboChange)
+        COMMAND_HANDLER(IDC_BTN_LOGIN,       BN_CLICKED,   OnLoginClicked)
     END_MSG_MAP()
 
 private:
     preferences_page_callback::ptr m_callback;
 
     LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&) {
-        // Populate fields from saved config
-        SetDlgItemText(IDC_EDIT_APP_ID,
-                       static_cast<const char*>(g_cfg_app_id));
-        SetDlgItemText(IDC_EDIT_APP_SECRET,
-                       static_cast<const char*>(g_cfg_app_secret));
-        SetDlgItemText(IDC_EDIT_EMAIL,
-                       static_cast<const char*>(g_cfg_email));
-        SetDlgItemText(IDC_EDIT_PASSWORD,
-                       static_cast<const char*>(g_cfg_password));
+        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_ID,
+                        static_cast<const char*>(g_cfg_app_id));
+        uSetDlgItemText(m_hWnd, IDC_EDIT_APP_SECRET,
+                        static_cast<const char*>(g_cfg_app_secret));
+        uSetDlgItemText(m_hWnd, IDC_EDIT_EMAIL,
+                        static_cast<const char*>(g_cfg_email));
+        uSetDlgItemText(m_hWnd, IDC_EDIT_PASSWORD,
+                        static_cast<const char*>(g_cfg_password));
 
-        // Populate quality combo
-        CComboBox combo = GetDlgItem(IDC_COMBO_FORMAT);
+        HWND hCombo = GetDlgItem(IDC_COMBO_FORMAT);
         for (int i = 0; i < kFormatCount; ++i)
-            combo.AddString(pfc::stringcvt::string_wide_from_utf8(kFormats[i].label));
-        selectFormatCombo(static_cast<uint32_t>(g_cfg_format_id));
+            ::SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)kFormats[i].label);
+        setFormatCombo(static_cast<uint32_t>(g_cfg_format_id));
 
-        SetDlgItemText(IDC_STATIC_STATUS, "");
+        uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS, "");
         return TRUE;
     }
 
-    LRESULT OnEditChange(WORD, WORD, HWND, BOOL&) {
-        onChanged();
-        return 0;
-    }
-    LRESULT OnComboChange(WORD, WORD, HWND, BOOL&) {
-        onChanged();
-        return 0;
-    }
+    LRESULT OnEditChange (WORD, WORD, HWND, BOOL&) { onChanged(); return 0; }
+    LRESULT OnComboChange(WORD, WORD, HWND, BOOL&) { onChanged(); return 0; }
 
     LRESULT OnLoginClicked(WORD, WORD, HWND, BOOL&) {
         std::string appId     = getEditText(IDC_EDIT_APP_ID);
@@ -132,13 +108,14 @@ private:
         std::string email     = getEditText(IDC_EDIT_EMAIL);
         std::string password  = getEditText(IDC_EDIT_PASSWORD);
 
-        if (appId.empty() || appSecret.empty() || email.empty() || password.empty()) {
-            SetDlgItemText(IDC_STATIC_STATUS,
-                           "Please fill in all fields before testing login.");
+        if (appId.empty() || appSecret.empty() ||
+            email.empty() || password.empty()) {
+            uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS,
+                "Please fill in all fields before testing login.");
             return 0;
         }
 
-        SetDlgItemText(IDC_STATIC_STATUS, "Logging in...");
+        uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS, "Logging in...");
         UpdateWindow();
 
         QobuzAPI api(appId, appSecret);
@@ -146,16 +123,15 @@ private:
         if (api.login(email, password, token, err)) {
             std::string msg = "Login successful! Token: " +
                               token.substr(0, 8) + "...";
-            SetDlgItemText(IDC_STATIC_STATUS, msg.c_str());
-            // Temporarily cache token
+            uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS, msg.c_str());
             g_cfg_auth_token = token.c_str();
         } else {
-            SetDlgItemText(IDC_STATIC_STATUS, ("Login failed: " + err).c_str());
+            uSetDlgItemText(m_hWnd, IDC_STATIC_STATUS,
+                ("Login failed: " + err).c_str());
         }
         return 0;
     }
 
-    // ---- helpers ----
     void onChanged() {
         if (m_callback.is_valid())
             m_callback->on_state_changed();
@@ -176,25 +152,25 @@ private:
     }
 
     uint32_t selectedFormatId() const {
-        int sel = SendDlgItemMessage(IDC_COMBO_FORMAT, CB_GETCURSEL, 0, 0);
+        int sel = (int)::SendDlgItemMessage(m_hWnd, IDC_COMBO_FORMAT,
+                                            CB_GETCURSEL, 0, 0);
         if (sel >= 0 && sel < kFormatCount)
             return kFormats[sel].format_id;
         return kFormatFLAC_16;
     }
 
-    void selectFormatCombo(uint32_t format_id) {
+    void setFormatCombo(uint32_t format_id) {
         for (int i = 0; i < kFormatCount; ++i) {
             if (kFormats[i].format_id == format_id) {
-                SendDlgItemMessage(IDC_COMBO_FORMAT, CB_SETCURSEL, i, 0);
+                ::SendDlgItemMessage(m_hWnd, IDC_COMBO_FORMAT,
+                                     CB_SETCURSEL, i, 0);
                 return;
             }
         }
-        SendDlgItemMessage(IDC_COMBO_FORMAT, CB_SETCURSEL, 0, 0);
+        ::SendDlgItemMessage(m_hWnd, IDC_COMBO_FORMAT, CB_SETCURSEL, 0, 0);
     }
 };
 
-// ---------------------------------------------------------------------------
-// preferences_page_factory_t helper
 // ---------------------------------------------------------------------------
 class CQobuzPreferencesImpl : public preferences_page_impl<CQobuzPreferences> {
 public:
