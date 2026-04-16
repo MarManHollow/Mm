@@ -195,9 +195,10 @@ LRESULT CQobuzBrowserWnd::OnNotify(UINT, WPARAM wParam, LPARAM lParam, BOOL&) {
 LRESULT CQobuzBrowserWnd::OnSearchClicked(WORD, WORD, HWND, BOOL&) {
     wchar_t buf[512] = {};
     GetWindowTextW(m_searchEdit, buf, 512);
-    pfc::string8 q = pfc::stringcvt::string_utf8_from_wide(buf, wcslen(buf));
-    if (!q.is_empty())
-        asyncSearch(q.get_ptr());
+    if (buf[0] != L'\0') {
+        pfc::stringcvt::string_utf8_from_wide conv(buf, wcslen(buf));
+        asyncSearch(conv.get_ptr());
+    }
     return 0;
 }
 
@@ -213,9 +214,8 @@ LRESULT CQobuzBrowserWnd::OnTracksReady(UINT, WPARAM, LPARAM lParam, BOOL&) {
     m_currentTracks = std::move(*tracks);
     delete tracks;
     populateList(m_currentTracks);
-    pfc::string8 msg;
-    msg << (int)m_currentTracks.size() << " track(s) loaded.";
-    setStatus(msg);
+    std::string msg = std::to_string(m_currentTracks.size()) + " track(s) loaded.";
+    setStatus(msg.c_str());
     return 0;
 }
 
