@@ -196,7 +196,7 @@ public:
         return m_dlg.Create(parent) != NULL;
     }
 
-    HWND get_wnd() { return m_dlg.m_hWnd; }
+    HWND get_wnd() override { return m_dlg.m_hWnd; }
 
     t_uint32 get_state() override { return m_dlg.get_state(); }
     void     apply()     override { m_dlg.apply(); }

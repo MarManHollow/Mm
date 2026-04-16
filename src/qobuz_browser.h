@@ -154,10 +154,10 @@ public:
         m_wnd.Create(parent);
     }
 
-    HWND get_wnd() { return m_wnd.m_hWnd; }
+    HWND get_wnd() override { return m_wnd.m_hWnd; }
 
-    void set_configuration(ui_element_config::ptr cfg) { m_cfg = cfg; }
-    ui_element_config::ptr get_configuration() { return m_cfg; }
+    void                   set_configuration(ui_element_config::ptr cfg) override { m_cfg = cfg; }
+    ui_element_config::ptr get_configuration() override { return m_cfg; }
 
     static GUID g_get_guid() {
         static const GUID g = {
@@ -168,8 +168,8 @@ public:
     }
     static GUID g_get_subclass() { return ui_element_subclass_utility; }
 
-    GUID get_guid() { return g_get_guid(); }
-    GUID get_subclass() { return g_get_subclass(); }
+    GUID get_guid()     override { return g_get_guid(); }
+    GUID get_subclass() override { return g_get_subclass(); }
 
 private:
     CQobuzBrowserWnd                 m_wnd;
@@ -182,30 +182,30 @@ private:
 // ---------------------------------------------------------------------------
 class CQobuzBrowserElement : public ui_element {
 public:
-    GUID get_guid() { return CQobuzBrowserInstance::g_get_guid(); }
-    GUID get_subclass() { return CQobuzBrowserInstance::g_get_subclass(); }
+    GUID get_guid()     override { return CQobuzBrowserInstance::g_get_guid(); }
+    GUID get_subclass() override { return CQobuzBrowserInstance::g_get_subclass(); }
 
-    void get_name(pfc::string_base& out) { out = "Qobuz Browser"; }
+    void get_name(pfc::string_base& out) override { out = "Qobuz Browser"; }
 
     ui_element_instance_ptr instantiate(HWND parent,
                                         ui_element_config::ptr cfg,
-                                        ui_element_instance_callback_ptr callback)
+                                        ui_element_instance_callback_ptr callback) override
     {
         auto* raw = new service_impl_t<CQobuzBrowserInstance>(cfg, callback);
         raw->initialize_window(parent);
         return raw;
     }
 
-    ui_element_config::ptr get_default_configuration() {
+    ui_element_config::ptr get_default_configuration() override {
         return ui_element_config::g_create_empty(CQobuzBrowserInstance::g_get_guid());
     }
 
-    bool get_description(pfc::string_base& out) {
+    bool get_description(pfc::string_base& out) override {
         out = "Browse new releases, playlists, and favorites from Qobuz.";
         return true;
     }
 
-    ui_element_children_enumerator_ptr enumerate_children(ui_element_config::ptr) {
+    ui_element_children_enumerator_ptr enumerate_children(ui_element_config::ptr) override {
         return nullptr;
     }
 };

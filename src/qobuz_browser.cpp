@@ -546,4 +546,4 @@ void CQobuzBrowserWnd::asyncSearch(const std::string& query) {
 // ---------------------------------------------------------------------------
 // Register the panel
 // ---------------------------------------------------------------------------
-static ui_element_factory_t<CQobuzBrowserElement> g_qobuz_browser_factory;
+static service_factory_single_t<CQobuzBrowserElement> g_qobuz_browser_factory;
