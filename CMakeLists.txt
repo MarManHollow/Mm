@@ -105,9 +105,29 @@ target_compile_definitions(foo_qobuz PRIVATE
     NOMINMAX
 )
 
+# foobar2000 shared runtime import lib (shared.dll lives inside foobar2000.exe
+# process at runtime; shared.lib exposes stubs: uBugCheck, uPrintfV,
+# uCallStackTracker, core_api::is_main_thread, etc.)
+find_library(FB2K_SHARED_LIB
+    NAMES shared-x64 shared
+    HINTS
+        "${FB2K_SDK_PATH}/foobar2000/shared/x64"
+        "${FB2K_SDK_PATH}/foobar2000/shared"
+    NO_DEFAULT_PATH
+)
+if(NOT FB2K_SHARED_LIB)
+    message(FATAL_ERROR
+        "Cannot find shared.lib / shared-x64.lib under\n"
+        "  ${FB2K_SDK_PATH}/foobar2000/shared\n"
+        "This import library ships pre-built with the SDK and provides stubs\n"
+        "for runtime symbols like uBugCheck, core_api::is_main_thread, etc.")
+endif()
+message(STATUS "foobar2000 shared runtime: ${FB2K_SHARED_LIB}")
+
 target_link_libraries(foo_qobuz PRIVATE
     foobar2000_SDK
     pfc
+    "${FB2K_SHARED_LIB}"
     nlohmann_json::nlohmann_json
     winhttp
     bcrypt
