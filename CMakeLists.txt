@@ -74,6 +74,7 @@ set_target_properties(foobar2000_SDK PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThrea
 # foo_qobuz plugin
 # -----------------------------------------------------------------------
 set(SOURCES
+    src/component_client.cpp
     src/main.cpp
     src/config.cpp
     src/http_client.cpp
