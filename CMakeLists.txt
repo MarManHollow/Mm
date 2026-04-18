@@ -37,8 +37,12 @@ FetchContent_MakeAvailable(nlohmann_json)
 #       The SDK headers need COM types (interface, IUnknown, IDataObject)
 #       and mmsystem.h (timeGetTime), all of which WIN32_LEAN_AND_MEAN strips.
 # -----------------------------------------------------------------------
-file(GLOB PFC_SOURCES      CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/pfc/*.cpp")
-file(GLOB FB2K_SDK_SOURCES CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/SDK/*.cpp")
+file(GLOB PFC_SOURCES           CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/pfc/*.cpp")
+file(GLOB FB2K_SDK_SOURCES     CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/SDK/*.cpp")
+# Root-level foobar2000/*.cpp (component_client.cpp etc.) – NOT in subdirs.
+# These provide DllMain, core_api::get_my_file_name/is_main_thread, and the
+# exported component entry point that foobar2000.exe looks for at load time.
+file(GLOB FB2K_CLIENT_SOURCES  CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/*.cpp")
 
 if(NOT FB2K_SDK_SOURCES)
     message(FATAL_ERROR
@@ -70,11 +74,27 @@ set_target_properties(foobar2000_SDK PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThrea
 # which is not bundled with the SDK. Our plugin only uses helper headers
 # (all inline/template), so no compiled lib is needed.
 
+# foobar2000 component client (foobar2000/*.cpp – root level, no WTL deps)
+if(FB2K_CLIENT_SOURCES)
+    add_library(foobar2000_client STATIC ${FB2K_CLIENT_SOURCES})
+    target_include_directories(foobar2000_client PUBLIC
+        "${FB2K_SDK_PATH}"
+        "${FB2K_SDK_PATH}/foobar2000"
+        "${FB2K_SDK_PATH}/foobar2000/SDK"
+        "${FB2K_SDK_PATH}/pfc")
+    target_compile_definitions(foobar2000_client PRIVATE UNICODE _UNICODE NOMINMAX)
+    target_link_libraries(foobar2000_client PUBLIC foobar2000_SDK pfc)
+    set_target_properties(foobar2000_client PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+else()
+    message(WARNING "No .cpp files found in ${FB2K_SDK_PATH}/foobar2000/ – "
+        "component entry point (DllMain / core_api) will be missing.")
+endif()
+
 # -----------------------------------------------------------------------
 # foo_qobuz plugin
 # -----------------------------------------------------------------------
 set(SOURCES
-    src/component_client.cpp
     src/main.cpp
     src/config.cpp
     src/http_client.cpp
@@ -126,6 +146,7 @@ endif()
 message(STATUS "foobar2000 shared runtime: ${FB2K_SHARED_LIB}")
 
 target_link_libraries(foo_qobuz PRIVATE
+    foobar2000_client
     foobar2000_SDK
     pfc
     "${FB2K_SHARED_LIB}"
