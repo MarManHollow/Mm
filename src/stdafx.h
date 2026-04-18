@@ -43,7 +43,6 @@
 
 // foobar2000 SDK
 #include <foobar2000.h>
-#include <helpers/helpers.h>
 // ATLHelpers is optional – present in some SDK versions, absent in others
 #if __has_include(<ATLHelpers/ATLHelpers.h>)
 #include <ATLHelpers/ATLHelpers.h>

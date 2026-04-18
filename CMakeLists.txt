@@ -37,9 +37,8 @@ FetchContent_MakeAvailable(nlohmann_json)
 #       The SDK headers need COM types (interface, IUnknown, IDataObject)
 #       and mmsystem.h (timeGetTime), all of which WIN32_LEAN_AND_MEAN strips.
 # -----------------------------------------------------------------------
-file(GLOB PFC_SOURCES          CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/pfc/*.cpp")
-file(GLOB FB2K_SDK_SOURCES     CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/SDK/*.cpp")
-file(GLOB FB2K_HELPERS_SOURCES CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/helpers/*.cpp")
+file(GLOB PFC_SOURCES      CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/pfc/*.cpp")
+file(GLOB FB2K_SDK_SOURCES CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/SDK/*.cpp")
 
 if(NOT FB2K_SDK_SOURCES)
     message(FATAL_ERROR
@@ -67,18 +66,9 @@ target_compile_definitions(foobar2000_SDK PRIVATE UNICODE _UNICODE NOMINMAX)
 target_link_libraries(foobar2000_SDK PUBLIC pfc)
 set_target_properties(foobar2000_SDK PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-# foobar2000_helpers  (needs WTL for atlapp.h et al.)
-add_library(foobar2000_helpers STATIC ${FB2K_HELPERS_SOURCES})
-target_include_directories(foobar2000_helpers PUBLIC
-    "${FB2K_SDK_PATH}"
-    "${FB2K_SDK_PATH}/foobar2000"
-    "${FB2K_SDK_PATH}/foobar2000/SDK"
-    "${FB2K_SDK_PATH}/foobar2000/helpers"
-    "${FB2K_SDK_PATH}/WTL/include"
-    "${FB2K_SDK_PATH}/pfc")
-target_compile_definitions(foobar2000_helpers PRIVATE UNICODE _UNICODE NOMINMAX)
-target_link_libraries(foobar2000_helpers PUBLIC foobar2000_SDK)
-set_target_properties(foobar2000_helpers PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+# foobar2000_helpers: NOT compiled – every .cpp requires WTL (atlapp.h)
+# which is not bundled with the SDK. Our plugin only uses helper headers
+# (all inline/template), so no compiled lib is needed.
 
 # -----------------------------------------------------------------------
 # foo_qobuz plugin
@@ -117,7 +107,6 @@ target_compile_definitions(foo_qobuz PRIVATE
 
 target_link_libraries(foo_qobuz PRIVATE
     foobar2000_SDK
-    foobar2000_helpers
     pfc
     nlohmann_json::nlohmann_json
     winhttp
