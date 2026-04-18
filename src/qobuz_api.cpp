@@ -105,6 +105,8 @@ std::string QobuzAPI::jsonString(const json& j, const char* key,
     auto it = j.find(key);
     if (it == j.end() || it->is_null()) return def;
     if (it->is_string()) return it->get<std::string>();
+    if (it->is_number_integer()) return std::to_string(it->get<int64_t>());
+    if (it->is_number()) return std::to_string(it->get<double>());
     return def;
 }
 
