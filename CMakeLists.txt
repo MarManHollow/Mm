@@ -76,11 +76,36 @@ target_link_libraries(foo_qobuz PRIVATE
     winmm       # timeGetTime (used by pfc/timers.h)
 )
 
-# foobar2000 SDK static libs (Release build assumed; adjust for Debug)
+# foobar2000 SDK static libs
+# The SDK must be built with Visual Studio before linking.
+# VS places libs under x64/Release (64-bit) or Release (32-bit).
+function(fb2k_find_lib OUT_VAR LIB_NAME BASE_DIR)
+    find_library(${OUT_VAR}
+        NAMES "${LIB_NAME}"
+        HINTS
+            "${BASE_DIR}/x64/Release"
+            "${BASE_DIR}/Release"
+            "${BASE_DIR}/x64/Debug"
+            "${BASE_DIR}/Debug"
+            "${BASE_DIR}"
+        NO_DEFAULT_PATH
+    )
+    if(NOT ${OUT_VAR})
+        message(FATAL_ERROR
+            "Cannot find ${LIB_NAME}.lib under ${BASE_DIR}.\n"
+            "Build the foobar2000 SDK in Visual Studio first (Release|x64),\n"
+            "then re-run cmake --build.")
+    endif()
+endfunction()
+
+fb2k_find_lib(FB2K_SDK_LIB     foobar2000_SDK     "${FB2K_SDK_PATH}/foobar2000/SDK")
+fb2k_find_lib(FB2K_HELPERS_LIB foobar2000_helpers "${FB2K_SDK_PATH}/foobar2000/helpers")
+fb2k_find_lib(FB2K_PFC_LIB     pfc                "${FB2K_SDK_PATH}/pfc")
+
 target_link_libraries(foo_qobuz PRIVATE
-    ${FB2K_SDK_PATH}/foobar2000/SDK/Release/foobar2000_SDK.lib
-    ${FB2K_SDK_PATH}/foobar2000/helpers/Release/foobar2000_helpers.lib
-    ${FB2K_SDK_PATH}/pfc/Release/pfc.lib
+    "${FB2K_SDK_LIB}"
+    "${FB2K_HELPERS_LIB}"
+    "${FB2K_PFC_LIB}"
 )
 
 set_target_properties(foo_qobuz PROPERTIES
