@@ -31,7 +31,57 @@ set(JSON_Install       OFF CACHE INTERNAL "")
 FetchContent_MakeAvailable(nlohmann_json)
 
 # -----------------------------------------------------------------------
-# Sources
+# foobar2000 SDK components – each built as its own static lib.
+#
+# NOTE: Do NOT define WIN32_LEAN_AND_MEAN on the SDK/pfc/helpers targets.
+#       The SDK headers need COM types (interface, IUnknown, IDataObject)
+#       and mmsystem.h (timeGetTime), all of which WIN32_LEAN_AND_MEAN strips.
+# -----------------------------------------------------------------------
+file(GLOB PFC_SOURCES          CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/pfc/*.cpp")
+file(GLOB FB2K_SDK_SOURCES     CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/SDK/*.cpp")
+file(GLOB FB2K_HELPERS_SOURCES CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/helpers/*.cpp")
+
+if(NOT FB2K_SDK_SOURCES)
+    message(FATAL_ERROR
+        "No .cpp files found under ${FB2K_SDK_PATH}/foobar2000/SDK\n"
+        "Check that FB2K_SDK_PATH points to the SDK root.")
+endif()
+
+# pfc
+add_library(pfc STATIC ${PFC_SOURCES})
+target_include_directories(pfc PUBLIC
+    "${FB2K_SDK_PATH}/pfc"
+    "${FB2K_SDK_PATH}")
+target_compile_definitions(pfc PRIVATE UNICODE _UNICODE NOMINMAX)
+target_link_libraries(pfc PRIVATE winmm)
+set_target_properties(pfc PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+# foobar2000_SDK
+add_library(foobar2000_SDK STATIC ${FB2K_SDK_SOURCES})
+target_include_directories(foobar2000_SDK PUBLIC
+    "${FB2K_SDK_PATH}"
+    "${FB2K_SDK_PATH}/foobar2000"
+    "${FB2K_SDK_PATH}/foobar2000/SDK"
+    "${FB2K_SDK_PATH}/pfc")
+target_compile_definitions(foobar2000_SDK PRIVATE UNICODE _UNICODE NOMINMAX)
+target_link_libraries(foobar2000_SDK PUBLIC pfc)
+set_target_properties(foobar2000_SDK PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+# foobar2000_helpers  (needs WTL for atlapp.h et al.)
+add_library(foobar2000_helpers STATIC ${FB2K_HELPERS_SOURCES})
+target_include_directories(foobar2000_helpers PUBLIC
+    "${FB2K_SDK_PATH}"
+    "${FB2K_SDK_PATH}/foobar2000"
+    "${FB2K_SDK_PATH}/foobar2000/SDK"
+    "${FB2K_SDK_PATH}/foobar2000/helpers"
+    "${FB2K_SDK_PATH}/WTL/include"
+    "${FB2K_SDK_PATH}/pfc")
+target_compile_definitions(foobar2000_helpers PRIVATE UNICODE _UNICODE NOMINMAX)
+target_link_libraries(foobar2000_helpers PUBLIC foobar2000_SDK)
+set_target_properties(foobar2000_helpers PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+# -----------------------------------------------------------------------
+# foo_qobuz plugin
 # -----------------------------------------------------------------------
 set(SOURCES
     src/main.cpp
@@ -49,14 +99,13 @@ add_library(foo_qobuz SHARED ${SOURCES})
 target_include_directories(foo_qobuz PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/resources
-    # foobar2000 SDK layout
-    ${FB2K_SDK_PATH}
-    ${FB2K_SDK_PATH}/foobar2000
-    ${FB2K_SDK_PATH}/foobar2000/SDK
-    ${FB2K_SDK_PATH}/foobar2000/helpers
-    ${FB2K_SDK_PATH}/foobar2000/ATLHelpers
-    ${FB2K_SDK_PATH}/WTL/include
-    ${FB2K_SDK_PATH}/pfc
+    "${FB2K_SDK_PATH}"
+    "${FB2K_SDK_PATH}/foobar2000"
+    "${FB2K_SDK_PATH}/foobar2000/SDK"
+    "${FB2K_SDK_PATH}/foobar2000/helpers"
+    "${FB2K_SDK_PATH}/foobar2000/ATLHelpers"
+    "${FB2K_SDK_PATH}/WTL/include"
+    "${FB2K_SDK_PATH}/pfc"
 )
 
 target_compile_definitions(foo_qobuz PRIVATE
@@ -67,35 +116,23 @@ target_compile_definitions(foo_qobuz PRIVATE
 )
 
 target_link_libraries(foo_qobuz PRIVATE
+    foobar2000_SDK
+    foobar2000_helpers
+    pfc
     nlohmann_json::nlohmann_json
     winhttp
     bcrypt
     crypt32
     shlwapi
     comctl32
-    winmm       # timeGetTime (used by pfc/timers.h)
-)
-
-# foobar2000 SDK static libs
-# The SDK ships as source only – compile it directly into our DLL.
-file(GLOB FB2K_SDK_SOURCES     CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/SDK/*.cpp")
-file(GLOB FB2K_HELPERS_SOURCES CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/foobar2000/helpers/*.cpp")
-file(GLOB FB2K_PFC_SOURCES     CONFIGURE_DEPENDS "${FB2K_SDK_PATH}/pfc/*.cpp")
-
-if(NOT FB2K_SDK_SOURCES)
-    message(FATAL_ERROR "No .cpp files found under ${FB2K_SDK_PATH}/foobar2000/SDK – check FB2K_SDK_PATH.")
-endif()
-
-target_sources(foo_qobuz PRIVATE
-    ${FB2K_SDK_SOURCES}
-    ${FB2K_HELPERS_SOURCES}
-    ${FB2K_PFC_SOURCES}
+    winmm
 )
 
 set_target_properties(foo_qobuz PROPERTIES
     OUTPUT_NAME "foo_qobuz"
     SUFFIX      ".dll"
     PREFIX      ""
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )
 
 # Rename to .fb2k-component so it can be drag-dropped into foobar2000
