@@ -124,6 +124,7 @@ public:
     // The methods still override the base class virtuals by name/args match.
     // ------------------------------------------------------------------
     t_uint32 get_subsong_count() { return 1; }
+    t_uint32 get_subsong(t_uint32 p_index) { return p_index; }
 
     void get_info(t_uint32 /*p_subsong*/,
                   file_info& p_info,
