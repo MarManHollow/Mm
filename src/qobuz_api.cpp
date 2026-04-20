@@ -151,7 +151,12 @@ QobuzTrack QobuzAPI::parseTrack(const json& jt) {
         const auto& ja = jt["album"];
         t.album_id     = jsonString(ja, "id");
         t.album_title  = jsonString(ja, "title");
-        t.year         = jsonInt   (ja, "release_date_original", 0) / 10000;
+        {
+            std::string rd = jsonString(ja, "release_date_original");
+            if (rd.size() >= 4) {
+                try { t.year = std::stoi(rd.substr(0, 4)); } catch (...) {}
+            }
+        }
 
         if (ja.contains("artist") && ja["artist"].is_object())
             t.album_artist = jsonString(ja["artist"], "name");
