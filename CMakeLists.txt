@@ -95,6 +95,7 @@ endif()
 # foo_qobuz plugin
 # -----------------------------------------------------------------------
 set(SOURCES
+    src/component_client.cpp
     src/main.cpp
     src/config.cpp
     src/http_client.cpp
@@ -146,7 +147,6 @@ endif()
 message(STATUS "foobar2000 shared runtime: ${FB2K_SHARED_LIB}")
 
 target_link_libraries(foo_qobuz PRIVATE
-    foobar2000_client
     foobar2000_SDK
     pfc
     "${FB2K_SHARED_LIB}"
@@ -158,6 +158,9 @@ target_link_libraries(foo_qobuz PRIVATE
     comctl32
     winmm
 )
+if(TARGET foobar2000_client)
+    target_link_libraries(foo_qobuz PRIVATE foobar2000_client)
+endif()
 
 set_target_properties(foo_qobuz PROPERTIES
     OUTPUT_NAME "foo_qobuz"
