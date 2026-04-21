@@ -211,7 +211,7 @@ bool QobuzAPI::login(const std::string& email,
     HttpClient http;
 
     std::string bodyStr = buildQuery({
-        {"email",    email},
+        {"username", email},
         {"password", md5hex(password)},
         {"app_id",   m_app_id},
     });
