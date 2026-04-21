@@ -102,6 +102,7 @@ endif()
 # -----------------------------------------------------------------------
 set(SOURCES
     src/component_client.cpp
+    src/core_api_impl.cpp
     src/main.cpp
     src/config.cpp
     src/http_client.cpp
