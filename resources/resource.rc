@@ -1,0 +1,75 @@
+// resource.rc – Windows resource script for foo_qobuz
+#include "resource.h"
+#include <winres.h>
+
+// ---------------------------------------------------------------------------
+// Version info – ProductName MUST be "foobar2000" for the component loader
+// ---------------------------------------------------------------------------
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION    1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
+FILEFLAGS      0
+FILEOS         VOS_NT_WINDOWS32
+FILETYPE       VFT_DLL
+FILESUBTYPE    VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "FileDescription",  "Qobuz streaming input for foobar2000"
+            VALUE "FileVersion",      "1, 0, 0, 0"
+            VALUE "InternalName",     "foo_qobuz"
+            VALUE "LegalCopyright",   "GPL-3.0"
+            VALUE "OriginalFilename", "foo_qobuz.dll"
+            VALUE "ProductName",      "foobar2000"
+            VALUE "ProductVersion",   "1, 0, 0, 0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+// ---------------------------------------------------------------------------
+// Preferences dialog – IDD_PREFS_QOBUZ
+// ---------------------------------------------------------------------------
+IDD_PREFS_QOBUZ DIALOGEX 0, 0, 340, 200
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    // ---- Developer credentials group ----
+    GROUPBOX        "Developer Credentials",    IDC_STATIC,         7,   7, 326,  60
+
+    LTEXT           "App ID:",                  IDC_STATIC_APP_ID,  15,  22,  50, 10
+    EDITTEXT                                    IDC_EDIT_APP_ID,    70,  20, 255, 12,
+                    ES_AUTOHSCROLL
+
+    LTEXT           "App Secret:",              IDC_STATIC_APP_SECRET, 15, 38,  50, 10
+    EDITTEXT                                    IDC_EDIT_APP_SECRET,   70, 36, 255, 12,
+                    ES_AUTOHSCROLL | ES_PASSWORD
+
+    // ---- Account credentials group ----
+    GROUPBOX        "Qobuz Account",            IDC_STATIC,          7,  75, 326,  60
+
+    LTEXT           "E-mail:",                  IDC_STATIC_EMAIL,   15,  90,  50, 10
+    EDITTEXT                                    IDC_EDIT_EMAIL,     70,  88, 255, 12,
+                    ES_AUTOHSCROLL
+
+    LTEXT           "Password:",                IDC_STATIC_PASSWORD, 15, 106,  50, 10
+    EDITTEXT                                    IDC_EDIT_PASSWORD,   70, 104, 255, 12,
+                    ES_AUTOHSCROLL | ES_PASSWORD
+
+    // ---- Streaming quality ----
+    GROUPBOX        "Streaming Quality",        IDC_STATIC,          7, 143, 326,  32
+
+    LTEXT           "Format:",                  IDC_STATIC_FORMAT,  15, 158,  40, 10
+    COMBOBOX                                    IDC_COMBO_FORMAT,   60, 156, 185, 60,
+                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    // ---- Test login ----
+    PUSHBUTTON      "Test Login",               IDC_BTN_LOGIN,       7, 180,  60, 14
+    LTEXT           "",                         IDC_STATIC_STATUS,  75, 183, 258, 10
+END
