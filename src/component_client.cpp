@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <component.h>   // foobar2000_client, foobar2000_api, g_foobar2000_api
 #if __has_include(<SDK/cfg_var_legacy.h>)
 #include <SDK/cfg_var_legacy.h>
 #endif
@@ -33,7 +34,7 @@ bool assert_main_thread() {
 }
 
 void ensure_main_thread() {
-    if (!is_main_thread()) FB2K_BugCheck();
+    if (!is_main_thread()) uBugCheck();
 }
 
 bool is_main_thread() {
