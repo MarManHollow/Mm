@@ -168,16 +168,6 @@ if(TARGET foobar2000_client)
     target_link_libraries(foo_qobuz PRIVATE foobar2000_client)
 endif()
 
-# Force-include every object from foobar2000_SDK so the SDK's exported
-# component entry-point function is never dead-stripped by the linker.
-# Without this the DLL has no recognisable exports and foobar2000 rejects
-# it with "Unsupported format or corrupted file".
-if(MSVC)
-    target_link_options(foo_qobuz PRIVATE
-        /WHOLEARCHIVE:$<TARGET_FILE:foobar2000_SDK>
-    )
-endif()
-
 set_target_properties(foo_qobuz PROPERTIES
     OUTPUT_NAME "foo_qobuz"
     SUFFIX      ".dll"
