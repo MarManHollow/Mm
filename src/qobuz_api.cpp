@@ -210,17 +210,20 @@ bool QobuzAPI::login(const std::string& email,
                      std::string&       out_error) {
     HttpClient http;
 
-    std::string bodyStr = buildQuery({
-        {"username", email},
-        {"password", md5hex(password)},
-        {"app_id",   m_app_id},
-    });
+    std::string url = std::string(BASE_URL) + "/user/login?" +
+        buildQuery({
+            {"email",    email},
+            {"password", password},
+            {"app_id",   m_app_id},
+        });
 
     HttpClient::Headers hdrs = {
-        {"X-App-Id", m_app_id},
+        {"User-Agent",    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0"},
+        {"X-App-Id",      m_app_id},
+        {"Content-Type",  "application/json;charset=UTF-8"},
     };
 
-    auto resp = http.post(std::string(BASE_URL) + "/user/login", bodyStr, hdrs);
+    auto resp = http.get(url, hdrs);
     if (!resp.ok()) {
         out_error = "Login failed (HTTP " + std::to_string(resp.status) + "): " + resp.body;
         return false;
